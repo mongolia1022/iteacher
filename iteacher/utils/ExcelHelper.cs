@@ -81,7 +81,7 @@ namespace JbkConsole
         /// <param name="tables"> table列表 </param>
         /// <param name="firstIsTitle"> DataTable的列名是否要导入 </param>
         /// <returns> 导入数据行数(包含列名那一行) </returns>
-        public ExcelHelper DataTableToExcelWithMultSheet(string fileName, List<DataTable> tables, bool firstIsTitle)
+        public ExcelHelper DataTableToExcelWithMultSheet(string fileName, Dictionary<string,DataTable> tables, bool firstIsTitle)
         {
             if (tables.Count == 0) return this;
             if (fileName.Contains(".xlsx")) // 2007版本
@@ -92,12 +92,12 @@ namespace JbkConsole
             {
                 var headStyle = TitleStyle();
                 var bodyStyle = BodyStyle();
-                for (int k = 0, len = tables.Count; k < len; k++)
+                foreach (var p in tables)
                 {
                     ISheet sheet;
                     if (_workBook != null)
                     {
-                        sheet = InitSheetTitle(tables[k], "Sheet" + (k + 1), true);
+                        sheet = InitSheetTitle(p.Value, p.Key, true);
                     }
                     else
                     {
@@ -108,11 +108,11 @@ namespace JbkConsole
                     if (firstIsTitle) //写入DataTable的列名
                     {
                         IRow row = sheet.CreateRow(0);
-                        for (j = 0; j < tables[k].Columns.Count; ++j)
+                        for (j = 0; j < p.Value.Columns.Count; ++j)
                         {
                             var cell = row.CreateCell(j);
                             cell.CellStyle = headStyle;
-                            cell.SetCellValue(tables[k].Columns[j].ColumnName);
+                            cell.SetCellValue(p.Value.Columns[j].ColumnName);
                         }
                         count = 1;
                     }
@@ -122,18 +122,19 @@ namespace JbkConsole
                     }
 
                     int i;
-                    for (i = 0; i < tables[k].Rows.Count; ++i)
+                    for (i = 0; i < p.Value.Rows.Count; ++i)
                     {
                         IRow row = sheet.CreateRow(count);
-                        for (j = 0; j < tables[k].Columns.Count; ++j)
+                        for (j = 0; j < p.Value.Columns.Count; ++j)
                         {
                             var cell = row.CreateCell(j);
                             cell.CellStyle = bodyStyle;
-                            cell.SetCellValue(tables[k].Rows[i][j].ToString());
+                            cell.SetCellValue(p.Value.Rows[i][j].ToString());
                         }
                         ++count;
                     }
                 }
+                _fileName = fileName;
                 return this;
             }
             catch (Exception ex)
@@ -145,7 +146,7 @@ namespace JbkConsole
             {
                 foreach (var table in tables)
                 {
-                    table.Dispose();
+                    table.Value.Dispose();
                 }
             }
         }

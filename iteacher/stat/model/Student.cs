@@ -8,26 +8,25 @@ namespace iteacher.stat.model
 {
     public class Student
     {
-        public string Name { get; set; }
+        public int 学号 { get; set; }
+        public string 姓名 { get; set; }
 
-        public double Chinese { get; set; }
+        public double 语文 { get; set; }
 
-        public double English { get; set; }
+        public double 英语 { get; set; }
 
-        public double Mathematics { get; set; }
+        public double 数学 { get; set; }
 
-        public double Politics { get; set; }
+        public double 政治 { get; set; }
 
-        public double History { get; set; }
+        public double 历史 { get; set; }
 
-        public double Geography { get; set; }
+        public double 地理 { get; set; }
 
-        public double Physics { get; set; }
+        public double 物理 { get; set; }
 
-        public double Chemistry { get; set; }
+        public double 化学 { get; set; }
 
-        public double Biology { get; set; }
-
-        public double Total { get; set; }
+        public double 生物 { get; set; }
     }
 }

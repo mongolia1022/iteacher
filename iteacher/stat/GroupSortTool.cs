@@ -17,6 +17,7 @@ namespace iteacher.stat
     /// </summary>
     public class GroupSortTool
     {
+        List<string> subjects=new List<string>(); 
         public void Excute()
         {
             var groups = GroupingStudents();
@@ -26,8 +27,21 @@ namespace iteacher.stat
                 return;
             }
 
-            OutputGroupInfo(groups);
-            Console.WriteLine("生成完毕！请到./result目录下查找，按回车关闭应用程序");
+            Dictionary<string, DataTable> dts = new Dictionary<string,DataTable>();
+            foreach (var subject in subjects)
+            {
+                var dt = GetSubjectAvgSortTable(groups, subject);
+                if(dt==null)
+                    continue;
+
+                dts.Add(subject,dt);
+            }
+
+            CDirectory.Create(@".\result");
+            new ExcelHelper().DataTableToExcelWithMultSheet(string.Format(@".\result\group_sort{0}.xlsx",
+                DateTime.Now.ToString("yyyy-MM-dd_HH_mm_ss")), dts, true).ExcuteLocal();
+
+            Console.WriteLine("生成完毕！请到.\\result目录下查找，按回车关闭应用程序");
         }
 
         /// <summary>
@@ -39,29 +53,25 @@ namespace iteacher.stat
             List<DataRow> rows = null;
             try
             {
-                rows = new ExcelHelper().ExcelToDataTable("./datasource/group.xlsx", "Sheet1", true)
+                rows = new ExcelHelper().ExcelToDataTable(@".\datasource\分组名单.xlsx", "Sheet1", true)
                     .Rows.Cast<DataRow>().ToList();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("分组信息读取失败，请检查\"/datasource/group.xlsx\"文件是否存在");
+                Console.WriteLine("分组信息读取失败，请检查\"\\datasource\\分组名单.xlsx\"文件是否存在");
                 return null;
             }
 
             var list = new List<StudentGroup>();
             foreach (var row in rows)
             {
-                var groupId = ConvertHelper.ObjectToInt(row["小组序号"]);
-                var students = row["小组成员"].ToString().Split(',', '，').Select(_ => new Student()).ToList();
+                var groupId = ConvertHelper.ObjectToInt(row["组别"]);
+                var students = row["成员"].ToString().Split(',', '，').Select(_ => new Student{姓名 = _}).ToList();
                 var group = new StudentGroup
                 {
                     Id = groupId,
                     Students = students
                 };
-
-                //统计
-                group.Total = group.Students.Sum(_ => _.Total);
-                group.Avg = group.Students.Average(_ => _.Total);
 
                 list.Add(group);
             }
@@ -74,40 +84,47 @@ namespace iteacher.stat
         /// <returns></returns>
         private List<Student> GetStudentScores()
         {
-            List<DataRow> rows = null;
+            DataTable dt = null;
             try
             {
-                rows = new ExcelHelper().ExcelToDataTable("./datasource/学生各科成绩.xlsx", "Sheet1", true)
-               .Rows.Cast<DataRow>().ToList();
+                dt = new ExcelHelper().ExcelToDataTable(@".\datasource\成绩汇总.xlsx", "Sheet1", true);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("分组信息读取失败，请检查\"/datasource/学生各科成绩.xlsx\"文件是否存在");
+                Console.WriteLine("分组信息读取失败，请检查\".\\datasource\\成绩汇总.xlsx\"文件是否存在");
                 return null;
             }
 
             var students = new List<Student>();
-            foreach (var row in rows)
+            var studentType = typeof (Student);
+            foreach (DataRow row in dt.Rows)
             {
-                var student=new Student
+                var student = new Student();
+                foreach (var prop in studentType.GetProperties())
                 {
-                    Name = row["姓名"].ToString(),
-                    Chinese = ConvertHelper.ObjectToDouble(row["语文"]),
-                    English = ConvertHelper.ObjectToDouble(row["数学"]),
-                    Mathematics = ConvertHelper.ObjectToDouble(row["英语"]),
-                    Politics = ConvertHelper.ObjectToDouble(row["政治"]),
-                    History = ConvertHelper.ObjectToDouble(row["历史"]),
-                    Geography = ConvertHelper.ObjectToDouble(row["地理"]),
-                    Physics = ConvertHelper.ObjectToDouble(row["物理"]),
-                    Chemistry = ConvertHelper.ObjectToDouble(row["化学"]),
-                    Biology = ConvertHelper.ObjectToDouble(row["生物"]),
-                };
+                    if (!dt.Columns.Contains(prop.Name))
+                        continue;
 
-                //统计
-                student.Total = student.Chinese + student.English + student.Mathematics + student.Politics +
-                                student.History + student.Geography + student.Physics + student.Chemistry +
-                                student.Biology;
+                    if(row[prop.Name] is DBNull)
+                        continue;
+
+                    object v = Convert.ChangeType(row[prop.Name], prop.PropertyType);
+
+                    prop.SetValue(student, v);
+
+                   
+                }
+                students.Add(student);
             }
+
+            foreach (DataColumn colunm in dt.Columns)
+            {
+                if (colunm.ColumnName == "姓名" || colunm.ColumnName == "学号")
+                    continue;
+
+                subjects.Add(colunm.ColumnName);
+            }
+
             return students;
         }
 
@@ -127,81 +144,52 @@ namespace iteacher.stat
             {
                 foreach (var group in groups)
                 {
-                    var i = group.Students.FindIndex(_ => _.Name == student.Name);
+                    var i = group.Students.FindIndex(_ => _.姓名 == student.姓名);
                     if (i > -1)
                         group.Students[i] = student;
                 }
             }
 
-            //排序
-            groups=groups.OrderByDescending(_ => _.Total).ToList();
-
             return groups;
         }
 
-        /// <summary>
-        /// 导出分组后的成绩信息
-        /// </summary>
-        public void OutputGroupInfo(List<StudentGroup> groups)
+        private DataTable GetSubjectAvgSortTable(List<StudentGroup> groups,string subject)
         {
-            FileStream fs = new FileStream(string.Format("./result_{0}.csv",DateTime.Now.ToString("yyyyMMdd")), System.IO.FileMode.Create, System.IO.FileAccess.Write);
-            StreamWriter sw = new StreamWriter(fs, Encoding.UTF8);
-            var csvWirter = new CsvWriter(sw);
+            var dt=new DataTable();
+            dt.Columns.Add("排名");
+            dt.Columns.Add("组别");
+            dt.Columns.Add("姓名");
+            dt.Columns.Add("分数");
+            dt.Columns.Add("科目");
 
-            var number = 0;
-            foreach (var group in groups)
+            var studentType = typeof (Student);
+            var prop = studentType.GetProperty(subject);
+            if (prop == null)
+                return null;
+
+            var group_numer = 0;
+            foreach (var group in groups.OrderByDescending(_ => _.Students.Average(s=>(double)prop.GetValue(s,null))).ToList())
             {
-                number++;
+                group_numer++;
+                foreach (var student in group.Students.OrderByDescending(s => (double)prop.GetValue(s, null)).ToList())
+                {
+                    var row = dt.NewRow();
+                    row["排名"] = group_numer;
+                    row["组别"] = group.Id;
+                    row["姓名"] = student.姓名;
+                    row["分数"] = prop.GetValue(student);
+                    row["科目"] = subject;
 
-                csvWirter.WriteRecord(new
-                {
-                    Number="名次",
-                    GroupId="小组序号",
-                    Name="学生姓名",
-                    Chinese = "语文",
-                    Mathematics = "数学",
-                    English = "英语",
-                    Politics = "政治",
-                    History = "历史",
-                    Geography = "地理",
-                    Physics = "物理",
-                    Chemistry = "化学",
-                    Biology = "生物",
-                });
-                foreach (var student in group.Students)
-                {
-                    csvWirter.WriteRecord(new
-                    {
-                        Number = "第"+number+"名",
-                        GroupId = group.Id+"组",
-                        student.Name,
-                        student.Chinese,
-                        student.Mathematics,
-                        student.English,
-                        student.Politics,
-                        student.History,
-                        student.Geography,
-                        student.Physics,
-                        student.Chemistry,
-                        student.Biology,
-                    });
+                    dt.Rows.Add(row);
                 }
-                csvWirter.WriteRecord(new
-                {
-                    Number = "",
-                    GroupId = "",
-                    Name = "",
-                    Chinese = "",
-                    Mathematics = "",
-                    English = "",
-                    Politics = "",
-                    History = "",
-                    Geography = "",
-                    Physics = "",
-                    Chemistry = "",
-                    Biology = "",
-                });
+                var avgRow = dt.NewRow();
+                avgRow["姓名"] = "平均分";
+                avgRow["分数"] = group.Students.Average(_=>(double)prop.GetValue(_,null));
+                dt.Rows.Add(avgRow);
+                dt.Rows.Add(dt.NewRow());
             }
+
+            return dt;
         }
     }
 }
