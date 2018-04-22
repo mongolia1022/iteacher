@@ -74,6 +74,8 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="seat\model\Student.cs" />
+    <Compile Include="seat\SeatSortTool.cs" />
     <Compile Include="stat\GroupSortTool.cs" />
     <Compile Include="stat\model\StudentGroup.cs" />
     <Compile Include="stat\model\Student.cs" />

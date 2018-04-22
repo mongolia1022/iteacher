@@ -299,7 +299,7 @@ namespace JbkConsole
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return new DataTable();
+                throw ex;
             }
             finally
             {

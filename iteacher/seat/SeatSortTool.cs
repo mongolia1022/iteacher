@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using com.ccfw.Utility;
 using iteacher.seat.model;
 using JbkConsole;
+using NPOI.SS.Formula.Functions;
 
 namespace iteacher.seat
 {
@@ -21,7 +23,7 @@ namespace iteacher.seat
 
             try
             {
-                students = new ExcelHelper().ExcelToDataTable(@".\datasource\学生名单.xlsx", "Sheet1", true)
+                students = new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","学生名单.xlsx"), "Sheet1", true)
                     .Rows.Cast<DataRow>().Select(r => new Student
                     {
                         姓名=r["姓名"].ToString(),
@@ -46,16 +48,33 @@ namespace iteacher.seat
             }
 
             //读取座位表
-            var seatDt=new ExcelHelper().ExcelToDataTable(@".\datasource\座位表.xlsx", "Sheet1", true);
+            DataTable seatDt = null;
+            try
+            {
+                seatDt=new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","座位表.xlsx"), "Sheet1", true);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("信息读取失败，请检查\"\\datasource\\座位表.xlsx\"文件是否存在");
+            }
+            
             var seatColums = seatDt.Columns.Cast<DataColumn>().Where(c=>Regex.IsMatch(c.ColumnName,"第.+列")).ToList();
             
             //过滤人工设定的学生
             var fixedStudents = new HashSet<string>();
             foreach (DataRow row in seatDt.Rows)
             {
+                bool needBreak = false;
                 foreach (var colum in seatColums)
                 {
                     var studentName = row[colum.ColumnName].ToString();
+                    //遇到单元格值为第n大组则认为座位已排完
+                    if (Regex.IsMatch(studentName, "第.+大组"))
+                    {
+                        needBreak = true;
+                        break;
+                    }
+                    
                     if (!string.IsNullOrEmpty(studentName))
                     {
                         //学生表找不到姓名
@@ -72,6 +91,11 @@ namespace iteacher.seat
                         studentsDic.Remove(studentName);
                     }
                 }
+
+                if (needBreak)
+                {
+                    break;
+                }
             }
             
             //将过滤后的学生随机排序
@@ -80,13 +104,14 @@ namespace iteacher.seat
             //写入未手工设定的座位
             foreach (DataRow row in seatDt.Rows)
             {
-                
+                bool needBreak = false;
                 foreach (var colum in seatColums)
                 {
                     var studentName = row[colum.ColumnName].ToString();
                     //遇到单元格值为第n大组则认为座位已排完
                     if (Regex.IsMatch(studentName, "第.+大组"))
                     {
+                        needBreak = true;
                         break;
                     }
                     
@@ -106,16 +131,16 @@ namespace iteacher.seat
                     students.Remove(s);
                 }
                 
-                if (!students.Any())
+                if (!students.Any()||needBreak)
                 {
                     break;
                 }
             }
             
             //保存excel
-            CDirectory.Create(@".\result");
-            new ExcelHelper().DataTableToExcel(string.Format(@".\result\seat_sort{0}.xlsx",
-                DateTime.Now.ToString("yyyy-MM-dd_HH_mm_ss")), seatDt, true).ExcuteLocal();
+            CDirectory.Create(@"result");
+            new ExcelHelper().DataTableToExcel(Path.Combine("result",string.Format("seat_sort{0:yyyy-MM-dd_HH_mm_ss}.xlsx", DateTime.Now))
+                , seatDt, false).ExcuteLocal();
 
             Console.WriteLine("座位表生成完毕！请到.\\result目录下查找，按回车关闭应用程序");
 
