@@ -23,7 +23,7 @@ namespace iteacher.seat
 
             try
             {
-                students = new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","学生名单.xlsx"), "Sheet1", true)
+                students = new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","座位表","学生名单.xlsx"), "Sheet1", true)
                     .Rows.Cast<DataRow>().Select(r => new Student
                     {
                         姓名=r["姓名"].ToString(),
@@ -51,7 +51,7 @@ namespace iteacher.seat
             DataTable seatDt = null;
             try
             {
-                seatDt=new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","座位表.xlsx"), "Sheet1", true);
+                seatDt=new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","座位表","座位表.xlsx"), "Sheet1", true);
             }
             catch (Exception ex)
             {

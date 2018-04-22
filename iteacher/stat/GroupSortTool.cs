@@ -38,8 +38,8 @@ namespace iteacher.stat
             }
 
             CDirectory.Create(@".\result");
-            new ExcelHelper().DataTableToExcelWithMultSheet(string.Format(@".\result\group_sort{0}.xlsx",
-                DateTime.Now.ToString("yyyy-MM-dd_HH_mm_ss")), dts, true).ExcuteLocal();
+            new ExcelHelper().DataTableToExcelWithMultSheet(
+                $@".\result\group_sort{DateTime.Now:yyyy-MM-dd_HH_mm_ss}.xlsx", dts, true).ExcuteLocal();
 
             Console.WriteLine("生成完毕！请到.\\result目录下查找，按回车关闭应用程序");
         }
@@ -53,12 +53,12 @@ namespace iteacher.stat
             List<DataRow> rows = null;
             try
             {
-                rows = new ExcelHelper().ExcelToDataTable(@".\datasource\分组名单.xlsx", "Sheet1", true)
+                rows = new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","成绩分组","分组名单.xlsx"), "Sheet1", true)
                     .Rows.Cast<DataRow>().ToList();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("分组信息读取失败，请检查\"\\datasource\\分组名单.xlsx\"文件是否存在");
+                Console.WriteLine("分组信息读取失败，请检查\"\\datasource\\成绩分组\\分组名单.xlsx\"文件是否存在");
                 return null;
             }
 
@@ -87,11 +87,11 @@ namespace iteacher.stat
             DataTable dt = null;
             try
             {
-                dt = new ExcelHelper().ExcelToDataTable(@".\datasource\成绩汇总.xlsx", "Sheet1", true);
+                dt = new ExcelHelper().ExcelToDataTable(Path.Combine("datasource","成绩分组","成绩汇总.xlsx"), "Sheet1", true);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("分组信息读取失败，请检查\".\\datasource\\成绩汇总.xlsx\"文件是否存在");
+                Console.WriteLine("分组信息读取失败，请检查\"\\datasource\\成绩分组\\成绩汇总.xlsx\"文件是否存在");
                 return null;
             }
 
